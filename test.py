@@ -134,6 +134,118 @@ class ImageSimilarityService:
     # ----------------------------
     # Search (FAST)
     # ----------------------------
+    # def search(self, image_url, product_ids=None, top_k=5):
+
+    #     if self.index is None:
+    #         raise Exception("Index not built or loaded!")
+
+    #     img = self.download_image(image_url)
+
+    #     if img is None:
+    #         return {
+    #             "success": False,
+    #             "error": "Invalid image URL"
+    #         }
+
+    #     emb = self.get_batch_embeddings([img])
+
+    #     if len(emb) == 0:
+    #         return {
+    #             "success": False,
+    #             "error": "Embedding failed"
+    #         }
+
+    #     query = emb[0].astype("float32")
+
+    #     results = []
+
+    #     # 🔥 STEP 1: Filter first
+    #     if product_ids:
+    #         product_ids = set(product_ids)
+
+    #         filtered_indices = [
+    #             i for i, item in enumerate(self.metadata)
+    #             if item["id"] in product_ids
+    #         ]
+
+    #         if not filtered_indices:
+    #             return {
+    #                 "success": True,
+    #                 "query_image": image_url,
+    #                 "best_match": None,
+    #                 "similar_matches": [],
+    #                 "total_results": 0
+    #             }
+
+    #         # similarity calc
+    #         for idx in filtered_indices:
+    #             item_emb = self.index.reconstruct(idx)
+
+    #             score = float(np.dot(query, item_emb))
+
+    #             results.append({
+    #                 "id": self.metadata[idx]["id"],
+    #                 "product_id": self.metadata[idx]["product_id"],
+    #                 "image": self.metadata[idx]["image"],
+    #                 "score": round(score, 3)
+    #             })
+
+    #     else:
+    #         # 🔥 STEP 2: Normal FAISS search
+    #         D, I = self.index.search(query.reshape(1, -1), top_k)
+
+    #         for score, idx in zip(D[0], I[0]):
+    #             results.append({
+    #                 "id": self.metadata[idx]["id"],
+    #                 "product_id": self.metadata[idx]["product_id"],
+    #                 "image": self.metadata[idx]["image"],
+    #                 "score": float(round(score, 3))
+    #             })
+
+    #     # 🔥 STEP 3: Sort results
+    #     results = sorted(results, key=lambda x: x["score"], reverse=True)
+
+    #     # 🔥 STEP 4: Split best + similar
+    #     best_match = None
+    #     similar_matches = []
+
+    #     if results:
+    #         best = results[0]
+
+    #         # match type logic
+    #         match_type = "exact" if best["score"] >= 0.99 else "similar"
+
+    #         best_match = {
+    #             **best,
+    #             "match_type": match_type,
+    #             "confidence": (
+    #                 "very_high" if best["score"] > 0.95 else
+    #                 "high" if best["score"] > 0.9 else
+    #                 "medium"
+    #             )
+    #         }
+
+    #         # rest similar
+    #         for r in results[1:top_k]:
+    #             similar_matches.append({
+    #                 **r,
+    #                 "match_type": "similar",
+    #                 "confidence": (
+    #                     "very_high" if r["score"] > 0.95 else
+    #                     "high" if r["score"] > 0.9 else
+    #                     "medium"
+    #                 )
+    #             })
+
+    #     # 🔥 FINAL RESPONSE
+    #     return {
+    #         "success": True,
+    #         "query_image": image_url,
+    #         "best_match": best_match,
+    #         "similar_matches": similar_matches,
+    #         "total_results": len(results),
+    #         "applied_filter": bool(product_ids)
+    #     }
     def search(self, image_url, product_ids=None, top_k=5):
 
         if self.index is None:
@@ -157,67 +269,46 @@ class ImageSimilarityService:
 
         query = emb[0].astype("float32")
 
-        results = []
+        # 🔥 STEP 1: Always do FAISS search (take more results for safety)
+        search_k = max(top_k, 50)
+        D, I = self.index.search(query.reshape(1, -1), search_k)
 
-        # 🔥 STEP 1: Filter first
+        all_results = []
+
+        for score, idx in zip(D[0], I[0]):
+            all_results.append({
+                "id": self.metadata[idx]["id"],
+                "product_id": self.metadata[idx]["product_id"],
+                "image": self.metadata[idx]["image"],
+                "score": float(round(score, 3))
+            })
+
+        # 🔥 STEP 2: Try filtering from results
+        filtered_results = []
+
         if product_ids:
             product_ids = set(product_ids)
 
-            filtered_indices = [
-                i for i, item in enumerate(self.metadata)
-                if item["id"] in product_ids
+            filtered_results = [
+                r for r in all_results if r["product_id"] in product_ids
             ]
 
-            if not filtered_indices:
-                return {
-                    "success": True,
-                    "query_image": image_url,
-                    "best_match": None,
-                    "similar_matches": [],
-                    "total_results": 0
-                }
+        # 🔥 STEP 3: Decide which results to use
+        final_results = filtered_results if filtered_results else all_results
 
-            # similarity calc
-            for idx in filtered_indices:
-                item_emb = self.index.reconstruct(idx)
+        # 🔥 STEP 4: Sort
+        final_results = sorted(final_results, key=lambda x: x["score"], reverse=True)
 
-                score = float(np.dot(query, item_emb))
-
-                results.append({
-                    "id": self.metadata[idx]["id"],
-                    "product_id": self.metadata[idx]["product_id"],
-                    "image": self.metadata[idx]["image"],
-                    "score": round(score, 3)
-                })
-
-        else:
-            # 🔥 STEP 2: Normal FAISS search
-            D, I = self.index.search(query.reshape(1, -1), top_k)
-
-            for score, idx in zip(D[0], I[0]):
-                results.append({
-                    "id": self.metadata[idx]["id"],
-                    "product_id": self.metadata[idx]["product_id"],
-                    "image": self.metadata[idx]["image"],
-                    "score": float(round(score, 3))
-                })
-
-        # 🔥 STEP 3: Sort results
-        results = sorted(results, key=lambda x: x["score"], reverse=True)
-
-        # 🔥 STEP 4: Split best + similar
+        # 🔥 STEP 5: Build response
         best_match = None
         similar_matches = []
 
-        if results:
-            best = results[0]
-
-            # match type logic
-            match_type = "exact" if best["score"] >= 0.99 else "similar"
+        if final_results:
+            best = final_results[0]
 
             best_match = {
                 **best,
-                "match_type": match_type,
+                "match_type": "exact" if best["score"] >= 0.99 else "similar",
                 "confidence": (
                     "very_high" if best["score"] > 0.95 else
                     "high" if best["score"] > 0.9 else
@@ -225,8 +316,7 @@ class ImageSimilarityService:
                 )
             }
 
-            # rest similar
-            for r in results[1:top_k]:
+            for r in final_results[1:top_k]:
                 similar_matches.append({
                     **r,
                     "match_type": "similar",
@@ -237,14 +327,14 @@ class ImageSimilarityService:
                     )
                 })
 
-        # 🔥 FINAL RESPONSE
         return {
             "success": True,
             "query_image": image_url,
             "best_match": best_match,
             "similar_matches": similar_matches,
-            "total_results": len(results),
-            "applied_filter": bool(product_ids)
+            "total_results": len(final_results),
+            "filter_used": bool(product_ids),
+            "filter_applied": bool(filtered_results)  # 🔥 important flag
         }
 
 
