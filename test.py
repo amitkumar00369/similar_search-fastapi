@@ -185,6 +185,7 @@ class ImageSimilarityService:
 
                 results.append({
                     "id": self.metadata[idx]["id"],
+                    "product_id": self.metadata[idx]["product_id"],
                     "image": self.metadata[idx]["image"],
                     "score": round(score, 3)
                 })
@@ -196,6 +197,7 @@ class ImageSimilarityService:
             for score, idx in zip(D[0], I[0]):
                 results.append({
                     "id": self.metadata[idx]["id"],
+                    "product_id": self.metadata[idx]["product_id"],
                     "image": self.metadata[idx]["image"],
                     "score": float(round(score, 3))
                 })
