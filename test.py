@@ -6,6 +6,7 @@ import clip
 from PIL import Image
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class ImageSimilarityService:
 
@@ -23,15 +24,20 @@ class ImageSimilarityService:
     # ----------------------------
     def download_image(self, url):
         try:
-            resp = requests.get(url, timeout=10)
+            resp = requests.get(url, timeout=(2,4))  # 🔥 fast timeout
+
+            if resp.status_code != 200:
+                return None
+
             img = Image.open(BytesIO(resp.content))
 
-            # fix transparency + palette issues
             if img.mode in ("RGBA", "P"):
                 img = img.convert("RGB")
 
             return img
-        except:
+
+        except Exception as e:
+            print("skip:", url)
             return None
 
     # ----------------------------
@@ -59,40 +65,54 @@ class ImageSimilarityService:
     # ----------------------------
     # Build embeddings (FAST + ROBUST)
     # ----------------------------
-    def build_embeddings(self, products, batch_size=32):
 
-        urls = [p["image"] for p in products]
 
-        print("⬇️ Downloading images...")
 
-        # parallel download
-        with ThreadPoolExecutor(max_workers=15) as executor:
-            images = list(executor.map(self.download_image, urls))
+    def build_embeddings(self, products, batch_size=64):
 
-        print("🧠 Generating embeddings...")
+        print("🧠 Building embeddings (memory safe)...")
 
         all_embeddings = []
-        valid_metadata = []
+        final_metadata = []
 
-        for i in range(0, len(images), batch_size):
+        for i in range(0, len(products), batch_size):
 
-            batch_imgs = images[i:i+batch_size]
             batch_products = products[i:i+batch_size]
 
-            batch_emb = self.get_batch_embeddings(batch_imgs)
+            # 🔥 Download only current batch
+            with ThreadPoolExecutor(max_workers=50) as executor:
+                images = list(
+                    executor.map(
+                        lambda p: self.download_image(p["image"]),
+                        batch_products
+                    )
+                )
 
-            # skip empty batch
-            if len(batch_emb) == 0:
+            # 🔥 Filter valid images
+            valid_data = [
+                (img, prod)
+                for img, prod in zip(images, batch_products)
+                if img is not None
+            ]
+
+            if not valid_data:
                 continue
 
-            # filter valid images
-            valid_imgs = [img for img in batch_imgs if img is not None]
+            batch_imgs, batch_meta = zip(*valid_data)
 
-            for j in range(len(valid_imgs)):
+            # 🔥 Generate embeddings
+            batch_emb = self.get_batch_embeddings(list(batch_imgs))
+
+            for j in range(len(batch_emb)):
                 all_embeddings.append(batch_emb[j])
-                valid_metadata.append(batch_products[j])
+                final_metadata.append(batch_meta[j])
 
-            print(f"Processed {min(i+batch_size, len(images))}/{len(images)}")
+            print(f"Processed {min(i+batch_size, len(products))}/{len(products)}")
+
+            # 🔥 FREE MEMORY (VERY IMPORTANT)
+            del images, batch_imgs, batch_meta, batch_emb
+            import gc
+            gc.collect()
 
         embeddings_array = np.array(all_embeddings).astype("float32")
 
@@ -102,9 +122,9 @@ class ImageSimilarityService:
         self.index = faiss.IndexFlatIP(dimension)
         self.index.add(embeddings_array)
 
-        self.metadata = valid_metadata
+        self.metadata = final_metadata
 
-        print("✅ Embeddings built + indexed")
+        print("✅ Done without crash 🚀")
 
     # ----------------------------
     # Save index (IMPORTANT)
@@ -131,121 +151,7 @@ class ImageSimilarityService:
 
         print("📂 Index loaded")
 
-    # ----------------------------
-    # Search (FAST)
-    # ----------------------------
-    # def search(self, image_url, product_ids=None, top_k=5):
-
-    #     if self.index is None:
-    #         raise Exception("Index not built or loaded!")
-
-    #     img = self.download_image(image_url)
-
-    #     if img is None:
-    #         return {
-    #             "success": False,
-    #             "error": "Invalid image URL"
-    #         }
-
-    #     emb = self.get_batch_embeddings([img])
-
-    #     if len(emb) == 0:
-    #         return {
-    #             "success": False,
-    #             "error": "Embedding failed"
-    #         }
-
-    #     query = emb[0].astype("float32")
-
-    #     results = []
-
-    #     # 🔥 STEP 1: Filter first
-    #     if product_ids:
-    #         product_ids = set(product_ids)
-
-    #         filtered_indices = [
-    #             i for i, item in enumerate(self.metadata)
-    #             if item["id"] in product_ids
-    #         ]
-
-    #         if not filtered_indices:
-    #             return {
-    #                 "success": True,
-    #                 "query_image": image_url,
-    #                 "best_match": None,
-    #                 "similar_matches": [],
-    #                 "total_results": 0
-    #             }
-
-    #         # similarity calc
-    #         for idx in filtered_indices:
-    #             item_emb = self.index.reconstruct(idx)
-
-    #             score = float(np.dot(query, item_emb))
-
-    #             results.append({
-    #                 "id": self.metadata[idx]["id"],
-    #                 "product_id": self.metadata[idx]["product_id"],
-    #                 "image": self.metadata[idx]["image"],
-    #                 "score": round(score, 3)
-    #             })
-
-    #     else:
-    #         # 🔥 STEP 2: Normal FAISS search
-    #         D, I = self.index.search(query.reshape(1, -1), top_k)
-
-    #         for score, idx in zip(D[0], I[0]):
-    #             results.append({
-    #                 "id": self.metadata[idx]["id"],
-    #                 "product_id": self.metadata[idx]["product_id"],
-    #                 "image": self.metadata[idx]["image"],
-    #                 "score": float(round(score, 3))
-    #             })
-
-    #     # 🔥 STEP 3: Sort results
-    #     results = sorted(results, key=lambda x: x["score"], reverse=True)
-
-    #     # 🔥 STEP 4: Split best + similar
-    #     best_match = None
-    #     similar_matches = []
-
-    #     if results:
-    #         best = results[0]
-
-    #         # match type logic
-    #         match_type = "exact" if best["score"] >= 0.99 else "similar"
-
-    #         best_match = {
-    #             **best,
-    #             "match_type": match_type,
-    #             "confidence": (
-    #                 "very_high" if best["score"] > 0.95 else
-    #                 "high" if best["score"] > 0.9 else
-    #                 "medium"
-    #             )
-    #         }
-
-    #         # rest similar
-    #         for r in results[1:top_k]:
-    #             similar_matches.append({
-    #                 **r,
-    #                 "match_type": "similar",
-    #                 "confidence": (
-    #                     "very_high" if r["score"] > 0.95 else
-    #                     "high" if r["score"] > 0.9 else
-    #                     "medium"
-    #                 )
-    #             })
-
-    #     # 🔥 FINAL RESPONSE
-    #     return {
-    #         "success": True,
-    #         "query_image": image_url,
-    #         "best_match": best_match,
-    #         "similar_matches": similar_matches,
-    #         "total_results": len(results),
-    #         "applied_filter": bool(product_ids)
-    #     }
+ 
     def search(self, image_url, product_ids=None, top_k=5):
 
         if self.index is None:
@@ -254,12 +160,17 @@ class ImageSimilarityService:
         img = self.download_image(image_url)
 
         if img is None:
-            return {
-                "success": False,
-                "error": "Invalid image URL"
-            }
+            return  {
+                    "success": True,
+                    "message": "not found",
+                    "query_image": image_url,
+                    "best_match": None,
+                    "similar_matches": [],
+                    "total_results": 0
+                }
 
         emb = self.get_batch_embeddings([img])
+        # print("djjjf",emb)
 
         if len(emb) == 0:
             return {
@@ -269,42 +180,51 @@ class ImageSimilarityService:
 
         query = emb[0].astype("float32")
 
-        # 🔥 STEP 1: Always do FAISS search (take more results for safety)
-        search_k = max(top_k, 50)
+        # 🔥 STEP 1: Always search
+        search_k = 50 if product_ids else top_k
         D, I = self.index.search(query.reshape(1, -1), search_k)
 
-        all_results = []
+        results = []
 
         for score, idx in zip(D[0], I[0]):
-            all_results.append({
+            results.append({
                 "id": self.metadata[idx]["id"],
                 "product_id": self.metadata[idx]["product_id"],
                 "image": self.metadata[idx]["image"],
                 "score": float(round(score, 3))
             })
 
-        # 🔥 STEP 2: Try filtering from results
-        filtered_results = []
-
+        # 🔥 STEP 2: If product_ids provided → filter
         if product_ids:
             product_ids = set(product_ids)
 
             filtered_results = [
-                r for r in all_results if r["product_id"] in product_ids
+                r for r in results if r["product_id"] in product_ids
             ]
 
-        # 🔥 STEP 3: Decide which results to use
-        final_results = filtered_results if filtered_results else all_results
+            # ❌ No match case
+            if not filtered_results:
+                return {
+                    "success": True,
+                    "message": "not found",
+                    "query_image": image_url,
+                    "best_match": None,
+                    "similar_matches": [],
+                    "total_results": 0
+                }
 
-        # 🔥 STEP 4: Sort
-        final_results = sorted(final_results, key=lambda x: x["score"], reverse=True)
+            # ✅ Only matched results
+            results = filtered_results
 
-        # 🔥 STEP 5: Build response
+        # 🔥 STEP 3: Sort
+        results = sorted(results, key=lambda x: x["score"], reverse=True)
+
+        # 🔥 STEP 4: Build response
         best_match = None
         similar_matches = []
 
-        if final_results:
-            best = final_results[0]
+        if results:
+            best = results[0]
 
             best_match = {
                 **best,
@@ -316,7 +236,7 @@ class ImageSimilarityService:
                 )
             }
 
-            for r in final_results[1:top_k]:
+            for r in results[1:top_k]:
                 similar_matches.append({
                     **r,
                     "match_type": "similar",
@@ -332,9 +252,8 @@ class ImageSimilarityService:
             "query_image": image_url,
             "best_match": best_match,
             "similar_matches": similar_matches,
-            "total_results": len(final_results),
-            "filter_used": bool(product_ids),
-            "filter_applied": bool(filtered_results)  # 🔥 important flag
+            "total_results": len(results),
+            "filter_applied": bool(product_ids)
         }
 
 
