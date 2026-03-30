@@ -255,9 +255,13 @@ class ImageSimilarityService:
 
         if img is None:
             return {
-                "success": False,
-                "error": "Invalid image URL"
-            }
+                    "success": True,
+                    "message": "not found",
+                    "query_image": image_url,
+                    "best_match": None,
+                    "similar_matches": [],
+                    "total_results": 0
+                }
 
         emb = self.get_batch_embeddings([img])
 
@@ -269,42 +273,51 @@ class ImageSimilarityService:
 
         query = emb[0].astype("float32")
 
-        # 🔥 STEP 1: Always do FAISS search (take more results for safety)
-        search_k = max(top_k, 50)
+        # 🔥 STEP 1: Always search
+        search_k = 50 if product_ids else top_k
         D, I = self.index.search(query.reshape(1, -1), search_k)
 
-        all_results = []
+        results = []
 
         for score, idx in zip(D[0], I[0]):
-            all_results.append({
+            results.append({
                 "id": self.metadata[idx]["id"],
                 "product_id": self.metadata[idx]["product_id"],
                 "image": self.metadata[idx]["image"],
                 "score": float(round(score, 3))
             })
 
-        # 🔥 STEP 2: Try filtering from results
-        filtered_results = []
-
+        # 🔥 STEP 2: If product_ids provided → filter
         if product_ids:
             product_ids = set(product_ids)
 
             filtered_results = [
-                r for r in all_results if r["product_id"] in product_ids
+                r for r in results if r["product_id"] in product_ids
             ]
 
-        # 🔥 STEP 3: Decide which results to use
-        final_results = filtered_results if filtered_results else all_results
+            # ❌ No match case
+            if not filtered_results:
+                return {
+                    "success": True,
+                    "message": "not found",
+                    "query_image": image_url,
+                    "best_match": None,
+                    "similar_matches": [],
+                    "total_results": 0
+                }
 
-        # 🔥 STEP 4: Sort
-        final_results = sorted(final_results, key=lambda x: x["score"], reverse=True)
+            # ✅ Only matched results
+            results = filtered_results
 
-        # 🔥 STEP 5: Build response
+        # 🔥 STEP 3: Sort
+        results = sorted(results, key=lambda x: x["score"], reverse=True)
+
+        # 🔥 STEP 4: Build response
         best_match = None
         similar_matches = []
 
-        if final_results:
-            best = final_results[0]
+        if results:
+            best = results[0]
 
             best_match = {
                 **best,
@@ -316,7 +329,7 @@ class ImageSimilarityService:
                 )
             }
 
-            for r in final_results[1:top_k]:
+            for r in results[1:top_k]:
                 similar_matches.append({
                     **r,
                     "match_type": "similar",
@@ -332,9 +345,8 @@ class ImageSimilarityService:
             "query_image": image_url,
             "best_match": best_match,
             "similar_matches": similar_matches,
-            "total_results": len(final_results),
-            "filter_used": bool(product_ids),
-            "filter_applied": bool(filtered_results)  # 🔥 important flag
+            "total_results": len(results),
+            "filter_applied": bool(product_ids)
         }
 
 
