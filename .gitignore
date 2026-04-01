@@ -3,3 +3,6 @@ command.zip
 __pycache__/
 *.pyc
 python data.zip
+
+update.zip
+update1.zip
