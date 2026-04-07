@@ -14,7 +14,7 @@ class ImageSimilarityService:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         # CLIP model
-        self.model, self.preprocess = clip.load("ViT-B/32", device=self.device)
+        self.model, self.preprocess = clip.load("ViT-L/14", device=self.device)
 
         self.index = None
         self.metadata = []
@@ -56,9 +56,11 @@ class ImageSimilarityService:
             embeddings = self.model.encode_image(batch)
 
         embeddings = embeddings.cpu().numpy()
+        # print("Raw embedding shape:", embeddings)  # Debugging line
 
         # normalize (important for cosine similarity)
         embeddings = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
+        # print("Normalized embedding shape:", embeddings)  # Debugging line
 
         return embeddings.astype("float32")
 
@@ -170,7 +172,7 @@ class ImageSimilarityService:
                 }
 
         emb = self.get_batch_embeddings([img])
-        # print("djjjf",emb)
+        # print("Embedding shape:", emb)  # Debugging line
 
         if len(emb) == 0:
             return {
@@ -179,6 +181,8 @@ class ImageSimilarityService:
             }
 
         query = emb[0].astype("float32")
+        # print("djjjf",query)
+        
 
         # 🔥 STEP 1: Always search
         search_k = 50 if product_ids else top_k
