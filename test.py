@@ -24,20 +24,31 @@ class ImageSimilarityService:
     # ----------------------------
     def download_image(self, url):
         try:
-            resp = requests.get(url, timeout=(2,4))  # 🔥 fast timeout
+            resp = requests.get(url, timeout=(3, 7))
 
             if resp.status_code != 200:
                 return None
 
+            # 🔥 check content type
+            if "image" not in resp.headers.get("Content-Type", ""):
+                return None
+
             img = Image.open(BytesIO(resp.content))
 
-            if img.mode in ("RGBA", "P"):
+            # 🔥 verify image (important)
+            img.verify()
+
+            # reopen after verify
+            img = Image.open(BytesIO(resp.content))
+
+            if img.mode != "RGB":
                 img = img.convert("RGB")
 
             return img
 
         except Exception as e:
-            print("skip:", url)
+            # 🔥 silent skip (avoid heavy logging)
+            print("skip",url)
             return None
 
     # ----------------------------
@@ -82,7 +93,7 @@ class ImageSimilarityService:
             batch_products = products[i:i+batch_size]
 
             # 🔥 Download only current batch
-            with ThreadPoolExecutor(max_workers=50) as executor:
+            with ThreadPoolExecutor(max_workers=20) as executor:
                 images = list(
                     executor.map(
                         lambda p: self.download_image(p["image"]),
