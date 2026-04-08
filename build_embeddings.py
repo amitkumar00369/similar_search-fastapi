@@ -12,6 +12,7 @@ from test import similar
 url = "https://i-chrono.com/api/Import-products-vector"
 
 products = requests.get(url).json()
+print(len(products))
 
 # input_url = "https://d5ee3ksv7elb9.cloudfront.net/product/0eb1f10b-53ad-4e68-ac8a-0ee268775875.png"
 similar.build_embeddings(products)
