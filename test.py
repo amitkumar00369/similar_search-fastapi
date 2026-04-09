@@ -14,7 +14,7 @@ class ImageSimilarityService:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         # CLIP model
-        self.model, self.preprocess = clip.load("ViT-B/32", device=self.device)
+        self.model, self.preprocess = clip.load("ViT-L/14", device=self.device)
 
         self.index = None
         self.metadata = []
@@ -24,20 +24,31 @@ class ImageSimilarityService:
     # ----------------------------
     def download_image(self, url):
         try:
-            resp = requests.get(url, timeout=(2,4))  # 🔥 fast timeout
+            resp = requests.get(url, timeout=(3, 7))
 
             if resp.status_code != 200:
                 return None
 
+            # 🔥 check content type
+            if "image" not in resp.headers.get("Content-Type", ""):
+                return None
+
             img = Image.open(BytesIO(resp.content))
 
-            if img.mode in ("RGBA", "P"):
+            # 🔥 verify image (important)
+            img.verify()
+
+            # reopen after verify
+            img = Image.open(BytesIO(resp.content))
+
+            if img.mode != "RGB":
                 img = img.convert("RGB")
 
             return img
 
         except Exception as e:
-            print("skip:", url)
+            # 🔥 silent skip (avoid heavy logging)
+            print("skip",url)
             return None
 
     # ----------------------------
@@ -56,9 +67,11 @@ class ImageSimilarityService:
             embeddings = self.model.encode_image(batch)
 
         embeddings = embeddings.cpu().numpy()
+        # print("Raw embedding shape:", embeddings)  # Debugging line
 
         # normalize (important for cosine similarity)
         embeddings = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
+        # print("Normalized embedding shape:", embeddings)  # Debugging line
 
         return embeddings.astype("float32")
 
@@ -80,7 +93,7 @@ class ImageSimilarityService:
             batch_products = products[i:i+batch_size]
 
             # 🔥 Download only current batch
-            with ThreadPoolExecutor(max_workers=50) as executor:
+            with ThreadPoolExecutor(max_workers=20) as executor:
                 images = list(
                     executor.map(
                         lambda p: self.download_image(p["image"]),
@@ -170,7 +183,7 @@ class ImageSimilarityService:
                 }
 
         emb = self.get_batch_embeddings([img])
-        # print("djjjf",emb)
+        # print("Embedding shape:", emb)  # Debugging line
 
         if len(emb) == 0:
             return {
@@ -179,6 +192,8 @@ class ImageSimilarityService:
             }
 
         query = emb[0].astype("float32")
+        # print("djjjf",query)
+        
 
         # 🔥 STEP 1: Always search
         search_k = 50 if product_ids else top_k
