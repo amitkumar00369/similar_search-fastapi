@@ -3,7 +3,7 @@ import requests
 import json
 # from test import similar
 
-with open("rolex.json", "r", encoding="utf-8") as f:
+with open("rolex_data.json", "r", encoding="utf-8") as f:
     products = json.load(f)
     
 seen = set()   # ✅ faster lookup
@@ -17,7 +17,7 @@ for item in products:
         unique_ids.append(pid)
 
 # ✅ write as text
-with open("reference.txt", "w", encoding="utf-8") as f:
+with open("reference1.txt", "w", encoding="utf-8") as f:
     for pid in unique_ids:
         f.write(pid + "\n")
 

@@ -247,7 +247,7 @@ class ImageSimilarityService:
                 resp = requests.get(p["image"], headers=headers, timeout=(3, 7))
 
                 if resp.status_code != 200:
-                    failedImage.append(resp)
+                    # failedImage.append(resp)
                     
                     return None, p
 
@@ -258,8 +258,8 @@ class ImageSimilarityService:
                 return img, p
 
             except Exception:
-                print(resp)
-                failedImage.append(resp)
+                # print(resp)
+                # failedImage.append(resp)
                 return None, p
 
         # CONFIG (IMPORTANT)
@@ -327,8 +327,8 @@ class ImageSimilarityService:
 
         self.metadata = final_metadata
 
-        faiss.write_index(self.index, "rolex.faiss")
-        json.dump(self.metadata, open("rolex_meta2.json", "w"))
+        faiss.write_index(self.index, "rolex_data.faiss")
+        json.dump(self.metadata, open("rolex_data_meta2.json", "w"))
 
         print("DONE")
         print(f"Total: {total}, Success: {success}, Failed: {failed}")
