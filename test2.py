@@ -563,11 +563,11 @@ class ImageSimilarityService:
                 "id": meta["id"],
                 "product_id": meta["product_id"],
                 "image": meta["image"],
-                "score": float(score),
-                "colour": meta["colour"],
-                "material": meta["material"],
-                "diameter": meta["diameter"],
-                "price": meta["price"]
+                "score": float(score)
+                # "colour": meta["colour"],
+                # "material": meta["material"],
+                # "diameter": meta["diameter"],
+                # "price": meta["price"]
             })
 
         if not results:
