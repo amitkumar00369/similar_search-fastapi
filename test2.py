@@ -230,16 +230,13 @@ class ImageSimilarityService:
     #     print("DONE")
     #     print(f"Total: {total}, Success: {success}, Failed: {failed}")
     def build(self, products):
-
         embeddings = []
         final_metadata = []
         failedImage = []
-
         total = len(products)
         success = 0
         failed = 0
-
-        print(f"Total images: {total}")
+        # print(f"Total images: {total}")
 
         def safe_download(p):
             try:
