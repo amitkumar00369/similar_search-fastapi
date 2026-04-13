@@ -335,8 +335,8 @@ class ImageSimilarityService:
 
     # ---------------- LOAD ----------------
     def load(self):
-        self.index = faiss.read_index("index2.faiss")
-        self.metadata = json.load(open("meta2.json"))
+        self.index = faiss.read_index("rolex_data.faiss")
+        self.metadata = json.load(open("rolex_data_meta2.json"))
 
     # ---------------- SEARCH ----------------
     # def search(self, image_url, product_ids=None, top_k=5):
@@ -556,6 +556,8 @@ class ImageSimilarityService:
         results = []
 
         for score, idx in zip(D[0], I[0]):
+            if score<0.77:
+                continue
             if idx >= len(self.metadata):
                 continue
             meta = self.metadata[idx]
@@ -567,11 +569,23 @@ class ImageSimilarityService:
                 # "colour": meta["colour"],
                 # "material": meta["material"],
                 # "diameter": meta["diameter"],
-                # "price": meta["price"]
+                # "price": meta["price"],
+                # "model": meta["model"] or ""
             })
 
         if not results:
-            return {"success": False}
+            return {"success": False,
+                    "message": "Not listing"}
+        if len(results)==1:
+            return  {
+            "success": True,
+            # "best_match": refined_results[0],
+            "best_match": results
+            
+            # "similar_matches": top_candidates[1:2],
+            # "total": len(refined_results),
+            # "product_id_locked": best_pid
+        }
 
         # STEP 2: TOP-K PRODUCT VOTING (FIX)
         top_candidates = results[:5]
@@ -612,8 +626,27 @@ class ImageSimilarityService:
         #     # fallback → highest score
         #     best = max(results, key=lambda x: x["score"])
         #     best_pid = best["product_id"]
-        best = max(results, key=lambda x: x["score"])
-        best_pid = best["product_id"]
+        sorted_results = sorted(results, key=lambda x: x["score"], reverse=True)
+        top1 = sorted_results[0]
+        top2 = sorted_results[1] if len(sorted_results) > 1 else None
+        best_pid= None
+
+        if top2:
+            diff = abs(top1["score"] - top2["score"])
+            print("Score diff:", diff)
+
+            # 🔥 CONFUSION CASE
+            if diff < 0.01:
+                print(" Close scores → choosing second best")
+                best_pid = top2["product_id"]
+            else:
+                best_pid = top1["product_id"]
+      
+
+        print(" Selected PID (score):", best_pid)
+
+        # best = max(results, key=lambda x: x["score"])
+        # best_pid = best["product_id"]
 
         print(" Using TOP SCORE →", best_pid)
 
@@ -652,13 +685,17 @@ class ImageSimilarityService:
 
         # STEP 5: SORT FINAL
         refined_results = sorted(refined_results, key=lambda x: x["final_score"], reverse=True)
+        best_match = next(
+            (r for r in results if r["product_id"] == best_pid),
+            None
+        )
 
         return {
             "success": True,
             # "best_match": refined_results[0],
-            "best_match": best
+            "best_match": best_match
             
-            # "similar_matches": refined_results[1:top_k],
+            # "similar_matches": top_candidates[1:2],
             # "total": len(refined_results),
             # "product_id_locked": best_pid
         }
