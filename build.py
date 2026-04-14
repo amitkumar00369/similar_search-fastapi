@@ -1,4 +1,4 @@
-from test2 import service
+from test1 import service
 import requests
 import json
 # from test import similar
@@ -6,22 +6,22 @@ import json
 with open("rolex_data.json", "r", encoding="utf-8") as f:
     products = json.load(f)
     
-seen = set()   # ✅ faster lookup
+seen = set()   # faster lookup
 unique_ids = []
 
-for item in products:
+for item in products[:24]:
     pid = item.get("product_id")
 
     if pid and pid not in seen:
         seen.add(pid)
         unique_ids.append(pid)
 
-# ✅ write as text
-with open("reference1.txt", "w", encoding="utf-8") as f:
+#  write as text
+with open("reference.txt", "w", encoding="utf-8") as f:
     for pid in unique_ids:
         f.write(pid + "\n")
 
-print("✅ Done! Total unique product_ids:", len(unique_ids))
+print(" Done! Total unique product_ids:", len(unique_ids))
 
 # url = "https://i-chrono.com/api/Import-products-vector"
 
@@ -277,5 +277,5 @@ print("✅ Done! Total unique product_ids:", len(unique_ids))
 print(len(products))
 
 # input_url = "https://d5ee3ksv7elb9.cloudfront.net/product/0eb1f10b-53ad-4e68-ac8a-0ee268775875.png"
-service.build(products)
+service.build(products[:200])
 # service.save()

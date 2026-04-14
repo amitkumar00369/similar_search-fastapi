@@ -543,7 +543,6 @@ class ImageSimilarityService:
         img = self.download_image(image_url)
         if img is None:
             return {"success": False}
-
         query_clip = self.get_clip_embedding(img)
         query_cnn = self.get_cnn_embedding(img)
 
@@ -577,7 +576,7 @@ class ImageSimilarityService:
             return  {
             "success": True,
             # "best_match": refined_results[0],
-            "best_match": results
+            "best_match": results[0]
             
             # "similar_matches": top_candidates[1:2],
             # "total": len(refined_results),

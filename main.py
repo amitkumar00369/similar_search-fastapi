@@ -1,8 +1,8 @@
 import uvicorn
 from fastapi import FastAPI, Query
 from typing import List
-from crono import ImageSimilarityService
-from result import search
+from test2 import ImageSimilarityService
+# from result import search
 from pydantic import BaseModel
 
 app = FastAPI()

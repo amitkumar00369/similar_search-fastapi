@@ -1,14 +1,14 @@
-import time
-from test import similar
+# import time
+# from test import similar
 
-def search(url: str,id:list):
-    print("urls", url)
+# def search(url: str,id:list):
+#     print("urls", url)
 
-    similar.load_embeddings()   # 🔴 very important
+#     similar.load_embeddings()   # 🔴 very important
 
-    result = similar.search(url,id)
+#     result = similar.search(url,id)
 
-    return result
+#     return result
 
 
 # input_url = "https://d5ee3ksv7elb9.cloudfront.net/product/0eb1f10b-53ad-4e68-ac8a-0ee268775875.png"
