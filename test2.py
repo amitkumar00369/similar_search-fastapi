@@ -291,7 +291,7 @@ class ImageSimilarityService:
 
             print(f"Processed: {min(i+batch_size, total)}/{total} | Success: {success} | Failed: {failed}")
 
-            # 🔥 free memory after each batch
+            # free memory after each batch
             del results
             gc.collect()
 
@@ -324,16 +324,20 @@ class ImageSimilarityService:
 
         self.metadata = final_metadata
 
-        faiss.write_index(self.index, "rolex_data.faiss")
-        json.dump(self.metadata, open("rolex_data_meta2.json", "w"))
+        # faiss.write_index(self.index, "rolex_data.faiss")
+        # json.dump(self.metadata, open("rolex_data_meta2.json", "w"))
+        faiss.write_index(self.index, "rolex_data1.faiss")
+        json.dump(self.metadata, open("rolex_data_meta1.json", "w"))
 
         print("DONE")
         print(f"Total: {total}, Success: {success}, Failed: {failed}")
 
     # ---------------- LOAD ----------------
     def load(self):
-        self.index = faiss.read_index("rolex_data.faiss")
-        self.metadata = json.load(open("rolex_data_meta2.json"))
+        # self.index = faiss.read_index("rolex_data.faiss")
+        # self.metadata = json.load(open("rolex_data_meta2.json"))
+        self.index = faiss.read_index("rolex_data1.faiss")
+        self.metadata = json.load(open("rolex_data_meta1.json"))
 
     # ---------------- SEARCH ----------------
     # def search(self, image_url, product_ids=None, top_k=5):
@@ -575,12 +579,8 @@ class ImageSimilarityService:
         if len(results)==1:
             return  {
             "success": True,
-            # "best_match": refined_results[0],
             "best_match": results[0]
-            
-            # "similar_matches": top_candidates[1:2],
-            # "total": len(refined_results),
-            # "product_id_locked": best_pid
+      
         }
 
         # STEP 2: TOP-K PRODUCT VOTING (FIX)
@@ -630,9 +630,11 @@ class ImageSimilarityService:
         if top2:
             diff = abs(top1["score"] - top2["score"])
             print("Score diff:", diff)
+            if top1["product_id"]==top2["product_id"]:
+                best_pid = top1["product_id"]
 
-            # 🔥 CONFUSION CASE
-            if diff < 0.01:
+            # CONFUSION CASE
+            elif diff < 0.015:
                 print(" Close scores → choosing second best")
                 best_pid = top2["product_id"]
             else:
@@ -688,12 +690,9 @@ class ImageSimilarityService:
 
         return {
             "success": True,
-            # "best_match": refined_results[0],
             "best_match": best_match
             
-            # "similar_matches": top_candidates[1:2],
-            # "total": len(refined_results),
-            # "product_id_locked": best_pid
+          
         }
 
 

@@ -187,6 +187,7 @@ class ImageSimilarityService:
             meta = self.metadata[idx]
 
             results.append({
+                "id": meta["id"],
                 "product_id": meta["product_id"],
                 "image": meta["image"],
                 "score": float(score)
@@ -201,7 +202,7 @@ class ImageSimilarityService:
         return {
             "success": True,
             "best_match": results[0],
-            "similar": results[1:top_k]
+            "similar": results
         }
 
 

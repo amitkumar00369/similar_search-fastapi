@@ -1,15 +1,15 @@
-from test1 import service
+from test2 import service
 import requests
 import json
 # from test import similar
 
-with open("rolex_data.json", "r", encoding="utf-8") as f:
+with open("rolex_clean_data.json", "r", encoding="utf-8") as f:
     products = json.load(f)
     
 seen = set()   # faster lookup
 unique_ids = []
 
-for item in products[:24]:
+for item in products:
     pid = item.get("product_id")
 
     if pid and pid not in seen:
@@ -277,5 +277,5 @@ print(" Done! Total unique product_ids:", len(unique_ids))
 print(len(products))
 
 # input_url = "https://d5ee3ksv7elb9.cloudfront.net/product/0eb1f10b-53ad-4e68-ac8a-0ee268775875.png"
-service.build(products[:200])
+service.build(products)
 # service.save()

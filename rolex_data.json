@@ -42,7 +42,7 @@
     {
         "id": 5,
         "product_id": "134300",
-        "image": "https://media.rolex.com/image/upload/q_auto/f_auto/t_v7/c_limit,w_1920/v1/a677b2c664f6/catalogue/2026/upright-c/m134300-0006",
+        "image": NaN,
         "colour": "Green",
         "material": "Steel",
         "diameter": 41,
@@ -171,7 +171,7 @@
     },
     {
         "id": 18,
-        "product_id": "126500LN",
+        "product_id": "126500LN\n\n",
         "image": "https://d5ee3ksv7elb9.cloudfront.net/product/76037b7c-eeab-4d1b-8311-8b9c11a95eb8.png",
         "colour": "White",
         "material": "Steel",
