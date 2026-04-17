@@ -565,7 +565,8 @@ class ImageSimilarityService:
                 "id": meta["id"],
                 "product_id": meta["product_id"],
                 "image": meta["image"],
-                "score": float(score)
+                "score": float(score),
+                "image_id": meta["image_id"]
                 # "colour": meta["colour"],
                 # "material": meta["material"],
                 # "diameter": meta["diameter"],
