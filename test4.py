@@ -218,12 +218,124 @@ class ImageSimilarityService:
             })
 
         results = sorted(results, key=lambda x: x["score"], reverse=True)
+        top_candidates = results[:5]
+        print("tops", top_candidates)
+
+        # product_counts = {}
+        # product_scores = {}
+
+        # for r in top_candidates:
+        #     pid = r["product_id"]
+
+        #     product_counts[pid] = product_counts.get(pid, 0) + 1
+        #     product_scores[pid] = product_scores.get(pid, 0) + r["score"]
+
+        # CHECK: any product appears ≥ 2 times
+        # best_pid = None
+        # found_majority = False
+
+        # for pid, count in product_counts.items():
+        #     if count >= 2:
+        #         found_majority = True
+        #         break
+
+        # if found_majority:
+        #     #  use voting
+        #     best_value = -1
+
+        #     for pid in product_counts:
+        #         value = (product_counts[pid] * 1.0) + (product_scores[pid] * 0.5)
+
+        #         if value > best_value:
+        #             best_value = value
+        #             best_pid = pid
+
+        #     print(" Using VOTING →", best_pid)
+
+        # else:
+        #     # fallback → highest score
+        #     best = max(results, key=lambda x: x["score"])
+        #     best_pid = best["product_id"]
+        sorted_results = sorted(results, key=lambda x: x["score"], reverse=True)
+        top1 = sorted_results[0]
+        top2 = sorted_results[1] if len(sorted_results) > 1 else None
+        best_pid= None
+
+        if top2:
+            diff = abs(top1["score"] - top2["score"])
+            print("Score diff:", diff)
+            # if top1["product_id"]==top2["product_id"]:
+            #     best_pid = top1["product_id"]
+
+            # CONFUSION CASE
+            if diff < 0.015:
+                print(" Close scores → choosing second best")
+                best_pid = top2["product_id"]
+            else:
+                best_pid = top1["product_id"]
+      
+
+        print(" Selected PID (score):", best_pid)
+
+        # best = max(results, key=lambda x: x["score"])
+        # best_pid = best["product_id"]
+
+        print(" Using TOP SCORE →", best_pid)
+
+        # STEP 3: FILTER ONLY SAME PRODUCT
+        # same_product = [
+        #     m for m in self.metadata
+        #     if m["product_id"] == best_pid
+        # ]
+
+        # STEP 4: RE-RANK ONLY SAME PRODUCT (CNN)
+        # refined_results = []
+
+        # for m in same_product:
+        #     ref_img = self.download_image(m["image"])
+        #     if ref_img is None:
+        #         continue
+
+        #     ref_clip = self.get_clip_embedding(ref_img)
+        #     ref_cnn = self.get_cnn_embedding(ref_img)
+
+        #     clip_sim = np.dot(query_clip, ref_clip)
+        #     cnn_sim = np.dot(query_cnn, ref_cnn)
+
+        #     final_score = float((clip_sim * 0.7) + (cnn_sim * 0.3))
+
+        #     refined_results.append({
+        #         "id": m["id"],
+        #         "product_id": m["product_id"],
+        #         "image": m["image"],
+        #         "score": float(clip_sim),
+        #         "final_score": final_score
+        #     })
+
+        # if not refined_results:
+        #     return {"success": False}
+
+        # # STEP 5: SORT FINAL
+        # refined_results = sorted(refined_results, key=lambda x: x["final_score"], reverse=True)
+        best_match = next(
+            (r for r in results if r["product_id"] == best_pid),
+            None
+        )
+        # best_match = results[best_pid]
+
+        return {
+            "success": True,
+            "best_match": best_match
+            
+          
+        }
         if not results:
             return {
                 "success": True,
                 "best_match": None,
                 "similar": []
             }
+        print(results[:5])
 
         return {
             "success": True,
