@@ -635,7 +635,7 @@ class ImageSimilarityService:
                 best_pid = top1["product_id"]
 
             # CONFUSION CASE
-            elif diff < 0.015:
+            elif diff < 0.013:
                 print(" Close scores → choosing second best")
                 best_pid = top2["product_id"]
             else:

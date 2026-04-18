@@ -97,33 +97,88 @@ class ImageSimilarityService:
         return emb / np.linalg.norm(emb)
 
     # ---------------- BUILD ----------------
-    def build(self, products):
-        embeddings = []
-        metadata = []
+    # def build(self, products):
+    #     embeddings = []
+    #     metadata = []
 
-        for p in products:
-            img = self.download_image(p["image"])
-            if img is None:
+    #     for p in products:
+    #         img = self.download_image(p["image"])
+    #         if img is None:
+    #             continue
+
+    #         emb = self.get_embedding(img)
+
+    #         embeddings.append(emb)
+    #         metadata.append({
+    #             **p,
+    #             "embedding": emb.tolist(),
+    #             "hash": str(imagehash.phash(img))
+    #         })
+
+    #     embeddings = np.array(embeddings).astype("float32")
+
+    #     self.index = faiss.IndexFlatIP(embeddings.shape[1])
+    #     self.index.add(embeddings)
+
+    #     self.metadata = metadata
+
+    #     faiss.write_index(self.index, "index4.faiss")
+    #     json.dump(metadata, open("index4.json","w"))
+    def build(self, products, batch_size=16):
+        all_embeddings = []
+        all_metadata = []
+
+        total = len(products)
+
+        for i in range(0, total, batch_size):
+            batch = products[i:i+batch_size]
+
+            images = []
+            batch_meta = []
+
+            # ---- DOWNLOAD ----
+            for p in batch:
+                img = self.download_image(p["image"])
+                if img is None:
+                    continue
+
+                img = self.normalize(img)
+
+                images.append(img)
+                batch_meta.append((p, img))
+
+            if not images:
                 continue
 
-            emb = self.get_embedding(img)
+            # ---- EMBEDDINGS ----
+            batch_embeddings = []
+            for (p, img) in batch_meta:
+                emb = self.get_embedding(img)
 
-            embeddings.append(emb)
-            metadata.append({
-                **p,
-                "embedding": emb.tolist(),
-                "hash": str(imagehash.phash(img))
-            })
+                batch_embeddings.append(emb)
 
-        embeddings = np.array(embeddings).astype("float32")
+                all_metadata.append({
+                    **p,
+                    "embedding": emb.tolist(),
+                    "hash": str(imagehash.phash(img))
+                })
+
+            all_embeddings.extend(batch_embeddings)
+
+            print(f"Processed batch {i//batch_size + 1} / {total//batch_size + 1}")
+
+        # ---- FAISS ----
+        embeddings = np.array(all_embeddings).astype("float32")
 
         self.index = faiss.IndexFlatIP(embeddings.shape[1])
         self.index.add(embeddings)
 
-        self.metadata = metadata
+        self.metadata = all_metadata
 
         faiss.write_index(self.index, "index4.faiss")
-        json.dump(metadata, open("index4.json","w"))
+        json.dump(all_metadata, open("index4.json", "w"))
+
+        print("✅ Index built successfully!")
     def load(self):
         # self.index = faiss.read_index("rolex_data.faiss")
         # self.metadata = json.load(open("rolex_data_meta2.json"))
@@ -191,7 +246,12 @@ class ImageSimilarityService:
         q_hash = imagehash.phash(img)
         for m in self.metadata:
             if q_hash - imagehash.hex_to_hash(m["hash"]) <= 5:
-                return {"success": True, "best_match": m}
+                return {"success": True, "best_match": {
+                "id": m["id"],
+                "product_id": m["product_id"],
+                "image": m["image"],
+                "score": 100,
+                "image_id": m["image_id"],"model": m["model"] or ""}}
 
         query = self.get_embedding(img)
 

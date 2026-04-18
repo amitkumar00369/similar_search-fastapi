@@ -3,8 +3,8 @@ import requests
 import json
 # from test import similar
 
-# with open("rolex_clean_data.json", "r", encoding="utf-8") as f:
-#     products = json.load(f)
+with open("must.json", "r", encoding="utf-8") as f:
+    products1 = json.load(f)
     
 # seen = set()   # faster lookup
 # unique_ids = []
@@ -21,11 +21,13 @@ import json
 #     for pid in unique_ids:
 #         f.write(pid + "\n")
 
-# print(" Done! Total unique product_ids:", len(unique_ids))
+print(" Done! Total unique product_ids:", len(products1))
 
 url = "https://i-chrono.com/api/Import-products-vector"
 
 products = requests.get(url).json()
+products.extend(products1)
+# print(products)
 # products =[{'product_id': 'Ref 224270',
 #   'image': 'https://media.rolex.com/image/upload/q_auto/f_auto/t_v7-cover-majesty-landscape/c_limit,w_1920/v1/catalogue/2025/upright-c/m224270-0001',
 #   'colour': 'Black',
