@@ -1,32 +1,32 @@
-from test4 import service
+from test2 import service
 import requests
 import json
 # from test import similar
 
-with open("must.json", "r", encoding="utf-8") as f:
-    products1 = json.load(f)
+with open("rolex_clean_data_3_ref.json", "r", encoding="utf-8") as f:
+    products = json.load(f)
     
-# seen = set()   # faster lookup
-# unique_ids = []
+seen = set()   # faster lookup
+unique_ids = []
 
-# for item in products:
-#     pid = item.get("product_id")
+for item in products:
+    pid = item.get("product_id")
 
-#     if pid and pid not in seen:
-#         seen.add(pid)
-#         unique_ids.append(pid)
+    if pid and pid not in seen:
+        seen.add(pid)
+        unique_ids.append(pid)
 
 # #  write as text
-# with open("reference.txt", "w", encoding="utf-8") as f:
-#     for pid in unique_ids:
-#         f.write(pid + "\n")
+with open("reference.txt", "w", encoding="utf-8") as f:
+    for pid in unique_ids:
+        f.write(pid + "\n")
 
-print(" Done! Total unique product_ids:", len(products1))
+print(" Done! Total unique product_ids:", len(products))
 
-url = "https://i-chrono.com/api/Import-products-vector"
+# url = "https://i-chrono.com/api/Import-products-vector"
 
-products = requests.get(url).json()
-products.extend(products1)
+# products = requests.get(url).json()
+# products.extend(products1)
 # print(products)
 # products =[{'product_id': 'Ref 224270',
 #   'image': 'https://media.rolex.com/image/upload/q_auto/f_auto/t_v7-cover-majesty-landscape/c_limit,w_1920/v1/catalogue/2025/upright-c/m224270-0001',

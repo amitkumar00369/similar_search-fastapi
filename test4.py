@@ -251,7 +251,10 @@ class ImageSimilarityService:
                 "product_id": m["product_id"],
                 "image": m["image"],
                 "score": 100,
-                "image_id": m["image_id"],"model": m["model"] or ""}}
+                "image_id": m["image_id"],
+                # "model": m["model"] or ""
+                }
+                        }
 
         query = self.get_embedding(img)
 
@@ -274,7 +277,7 @@ class ImageSimilarityService:
                 # "material": meta["material"],
                 # "diameter": meta["diameter"],
                 # "price": meta["price"],
-                "model": meta["model"] or ""
+                # "model": meta["model"] or ""
             })
 
         results = sorted(results, key=lambda x: x["score"], reverse=True)

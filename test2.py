@@ -635,7 +635,7 @@ class ImageSimilarityService:
                 best_pid = top1["product_id"]
 
             # CONFUSION CASE
-            elif diff < 0.013:
+            elif 0.01 < diff < 0.013:
                 print(" Close scores → choosing second best")
                 best_pid = top2["product_id"]
             else:
@@ -650,40 +650,40 @@ class ImageSimilarityService:
         print(" Using TOP SCORE →", best_pid)
 
         # STEP 3: FILTER ONLY SAME PRODUCT
-        same_product = [
-            m for m in self.metadata
-            if m["product_id"] == best_pid
-        ]
+        # same_product = [
+        #     m for m in self.metadata
+        #     if m["product_id"] == best_pid
+        # ]
 
-        # STEP 4: RE-RANK ONLY SAME PRODUCT (CNN)
-        refined_results = []
+        # # STEP 4: RE-RANK ONLY SAME PRODUCT (CNN)
+        # refined_results = []
 
-        for m in same_product:
-            ref_img = self.download_image(m["image"])
-            if ref_img is None:
-                continue
+        # for m in same_product:
+        #     ref_img = self.download_image(m["image"])
+        #     if ref_img is None:
+        #         continue
 
-            ref_clip = self.get_clip_embedding(ref_img)
-            ref_cnn = self.get_cnn_embedding(ref_img)
+        #     ref_clip = self.get_clip_embedding(ref_img)
+        #     ref_cnn = self.get_cnn_embedding(ref_img)
 
-            clip_sim = np.dot(query_clip, ref_clip)
-            cnn_sim = np.dot(query_cnn, ref_cnn)
+        #     clip_sim = np.dot(query_clip, ref_clip)
+        #     cnn_sim = np.dot(query_cnn, ref_cnn)
 
-            final_score = float((clip_sim * 0.7) + (cnn_sim * 0.3))
+        #     final_score = float((clip_sim * 0.7) + (cnn_sim * 0.3))
 
-            refined_results.append({
-                "id": m["id"],
-                "product_id": m["product_id"],
-                "image": m["image"],
-                "score": float(clip_sim),
-                "final_score": final_score
-            })
+        #     refined_results.append({
+        #         "id": m["id"],
+        #         "product_id": m["product_id"],
+        #         "image": m["image"],
+        #         "score": float(clip_sim),
+        #         "final_score": final_score
+        #     })
 
-        if not refined_results:
-            return {"success": False}
+        # if not refined_results:
+        #     return {"success": False}
 
         # STEP 5: SORT FINAL
-        refined_results = sorted(refined_results, key=lambda x: x["final_score"], reverse=True)
+        # refined_results = sorted(refined_results, key=lambda x: x["final_score"], reverse=True)
         best_match = next(
             (r for r in results if r["product_id"] == best_pid),
             None
