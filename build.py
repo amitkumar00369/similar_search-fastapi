@@ -4,12 +4,14 @@ import json
 # from test import similar
 
 with open("rolex_clean_data_3_ref.json", "r", encoding="utf-8") as f:
-    products = json.load(f)
+    products1 = json.load(f)
+with open("must.json", "r", encoding="utf-8") as f:
+    products2 = json.load(f)
     
 seen = set()   # faster lookup
 unique_ids = []
 
-for item in products:
+for item in products1:
     pid = item.get("product_id")
 
     if pid and pid not in seen:
@@ -21,12 +23,13 @@ with open("reference.txt", "w", encoding="utf-8") as f:
     for pid in unique_ids:
         f.write(pid + "\n")
 
-print(" Done! Total unique product_ids:", len(products))
+print(" Done! Total unique product_ids:", len(products1),len(products2))
 
-# url = "https://i-chrono.com/api/Import-products-vector"
+url = "https://i-chrono.com/api/Import-products-vector"
 
-# products = requests.get(url).json()
-# products.extend(products1)
+products = requests.get(url).json()
+products.extend(products1)
+products.extend(products2)
 # print(products)
 # products =[{'product_id': 'Ref 224270',
 #   'image': 'https://media.rolex.com/image/upload/q_auto/f_auto/t_v7-cover-majesty-landscape/c_limit,w_1920/v1/catalogue/2025/upright-c/m224270-0001',

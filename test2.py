@@ -561,6 +561,7 @@ class ImageSimilarityService:
             if idx >= len(self.metadata):
                 continue
             meta = self.metadata[idx]
+            # print("Meta",meta)
             results.append({
                 "id": meta["id"],
                 "product_id": meta["product_id"],
@@ -626,16 +627,19 @@ class ImageSimilarityService:
         sorted_results = sorted(results, key=lambda x: x["score"], reverse=True)
         top1 = sorted_results[0]
         top2 = sorted_results[1] if len(sorted_results) > 1 else None
+        top3 = sorted_results[2] if len(sorted_results) > 1 else None
         best_pid= None
 
         if top2:
             diff = abs(top1["score"] - top2["score"])
             print("Score diff:", diff)
-            if top1["product_id"]==top2["product_id"]:
+            if diff==0.0:
+                best_pid = top3["product_id"]
+            elif top1["product_id"]==top2["product_id"]:
                 best_pid = top1["product_id"]
 
             # CONFUSION CASE
-            elif 0.01 < diff < 0.013:
+            elif diff < 0.013:
                 print(" Close scores → choosing second best")
                 best_pid = top2["product_id"]
             else:
